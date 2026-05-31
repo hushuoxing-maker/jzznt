@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>家装全链路智能体 · 户型图上传AI分析系统 | 全自动设计引擎 + 5大组全链路方案</title>
+    <style>
+        :root {
+            --bg: #08090b;
+            --panel: #111318;
+            --card: #181b20;
+            --border: #242830;
+            --accent: #c8a45c;
+            --accent2: #e0c878;
+            --blue: #5b9bd5;
+            --green: #3cb878;
+            --red: #e05560;
+            --text: #e0e0e0;
+            --muted: #6e7178;
+            --label: #909298;
+            --tag-bg: #1c1e24;
+            --tag-selected: rgba(200,164,92,0.2);
+            --tag-multi: rgba(91,155,213,0.2);
+            --radius: 5px;
+            --radius-lg: 8px;
+            --radius-pill: 20px;
+            --font-mono: 'JetBrains Mono','Fira Code','Consolas',monospace;
+            --font-sans: 'PingFang SC','Microsoft YaHei','Helvetica Neue',sans-serif;
+            --transition: 0.2s ease;
+        }
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{background:var(--bg);color:var(--text);font-family:var(--font-sans);min-height:100vh;display:flex;flex-direction:column;}
+        .topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;border-bottom:1px solid var(--border);background:var(--panel);position:sticky;top:0;z-index:200;gap:10px;flex-wrap:wrap;}
+        .topbar-left{display:flex;align-items:center;gap:12px;flex-shrink:0;}
+        .logo{font-size:11px;font-weight:700;letter-spacing:2.5px;color:var(--accent);text-transform:uppercase;}
+        .topbar-title{font-size:10px;font-weight:500;letter-spacing:2px;color:var(--muted);text-transform:uppercase;}
+        .topbar-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap;}
+        .btn-accent{padding:7px 16px;background:var(--accent);color:#1a1a1a;border:none;font-size:11px;font-weight:700;cursor:pointer;border-radius:var(--radius);transition:all var(--transition);font-family:inherit;}
+        .btn-accent:hover{background:var(--accent2);transform:translateY(-1px);}
+        .btn-accent2{padding:7px 16px;background:var(--blue);color:#fff;border:none;font-size:11px;font-weight:700;cursor:pointer;border-radius:var(--radius);transition:all var(--transition);font-family:inherit;}
+        .btn-accent2:hover{background:#7ab8f0;}
+        .btn-ghost{padding:6px 14px;border:1px solid var(--border);background:transparent;color:var(--label);font-size:10px;cursor:pointer;border-radius:var(--radius);font-family:inherit;}
+        .btn-ghost:hover{border-color:#555;color:var(--text);}
+        .badge{font-size:9px;padding:3px 9px;border-radius:var(--radius-pill);background:var(--accent);color:#1a1a1a;font-weight:700;}
+        .main{display:grid;grid-template-columns:480px 1fr;flex:1;overflow:hidden;}
+        .left-panel{border-right:1px solid var(--border);background:var(--panel);display:flex;flex-direction:column;height:calc(100vh - 48px);position:sticky;top:48px;overflow-y:auto;}
+        .left-header{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;flex-shrink:0;}
+        .left-title{font-size:10px;font-weight:600;letter-spacing:2px;color:var(--label);text-transform:uppercase;}
+        .selected-count{font-size:9px;color:var(--accent);font-family:var(--font-mono);}
+        .left-scroll{flex:1;overflow-y:auto;padding:6px 0;}
+        .accordion{border-bottom:1px solid rgba(255,255,255,0.04);}
+        .accordion-header{padding:10px 16px;cursor:pointer;display:flex;justify-content:space-between;user-select:none;transition:background var(--transition);}
+        .accordion-header:hover{background:rgba(255,255,255,0.02);}
+        .accordion-label{font-size:10px;font-weight:600;letter-spacing:1.5px;color:var(--label);text-transform:uppercase;display:flex;align-items:center;gap:6px;}
+        .accordion-icon{font-size:9px;color:var(--muted);transition:transform var(--transition);}
+        .accordion.open .accordion-icon{transform:rotate(180deg);}
+        .accordion-body{display:none;padding:6px 16px 12px;}
+        .accordion.open .accordion-body{display:block;}
+        .tag-group{margin-bottom:8px;}
+        .tag-group-title{font-size:8px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:5px;padding-left:6px;border-left:2px solid var(--accent);}
+        .tags{display:flex;flex-wrap:wrap;gap:4px;}
+        .tag{padding:3px 9px;background:var(--tag-bg);border:1px solid var(--border);color:var(--label);font-size:10px;border-radius:var(--radius-pill);cursor:pointer;transition:all var(--transition);user-select:none;}
+        .tag:hover{border-color:#444;color:#ccc;}
+        .tag.selected{background:var(--tag-selected);border-color:var(--accent);color:var(--accent2);font-weight:500;}
+        .tag.multi-selected{background:var(--tag-multi);border-color:var(--blue);color:#8cc8ff;}
+        .input-row{display:flex;flex-direction:column;gap:3px;margin-bottom:8px;}
+        .input-row label{font-size:9px;color:var(--muted);letter-spacing:1px;}
+        .input-row input,.input-row select{background:var(--card);border:1px solid var(--border);color:var(--text);padding:7px 10px;font-size:11px;border-radius:var(--radius);width:100%;font-family:inherit;}
+        .input-row input:focus,.input-row select:focus{outline:none;border-color:var(--accent);}
+        .upload-area{margin:8px 16px 12px;background:rgba(200,164,92,0.08);border:1px dashed var(--accent);border-radius:var(--radius-lg);padding:12px;text-align:center;}
+        .upload-label{display:inline-block;background:var(--accent);color:#1a1a1a;padding:6px 14px;border-radius:var(--radius-pill);font-size:10px;cursor:pointer;margin-bottom:8px;}
+        .upload-status{font-size:9px;color:var(--label);margin-top:6px;}
+        .analysis-result{background:var(--card);border-radius:var(--radius);padding:10px;margin-top:10px;font-size:9px;line-height:1.5;max-height:200px;overflow-y:auto;}
+        .score-bar{height:4px;background:var(--border);border-radius:2px;margin:4px 0;width:100%;}
+        .score-fill{height:4px;background:var(--accent2);border-radius:2px;width:0%;}
+        .right-panel{background:var(--bg);display:flex;flex-direction:column;height:calc(100vh - 48px);overflow:hidden;}
+        .right-header{padding:10px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+        .right-title{font-size:10px;font-weight:600;letter-spacing:2px;color:var(--label);}
+        .right-tabs{display:flex;gap:3px;}
+        .right-tab{padding:5px 12px;font-size:10px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--label);border-radius:var(--radius);font-family:inherit;}
+        .right-tab.active{background:var(--accent);color:#1a1a1a;border-color:var(--accent);font-weight:600;}
+        .right-scroll{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:14px;}
+        .report-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;display:flex;flex-direction:column;gap:10px;}
+        .report-card h3{font-size:14px;font-weight:700;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:8px;}
+        .prompt-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;display:flex;flex-direction:column;gap:8px;}
+        .prompt-num{font-size:8px;font-weight:700;letter-spacing:2px;color:var(--accent);font-family:var(--font-mono);}
+        .prompt-text{font-size:11px;color:#c0c0c0;line-height:1.7;word-break:break-word;}
+        .btn-copy{padding:4px 10px;background:transparent;border:1px solid var(--border);color:var(--label);font-size:9px;cursor:pointer;border-radius:var(--radius);align-self:flex-end;}
+        .btn-copy:hover{border-color:var(--accent);color:var(--accent);}
+        .btn-copy.copied{border-color:var(--green);color:var(--green);}
+        .budget-table{width:100%;border-collapse:collapse;font-size:10px;margin-top:6px;}
+        .budget-table th,.budget-table td{padding:6px 8px;border-bottom:1px solid var(--border);text-align:left;}
+        .budget-total{font-size:15px;font-weight:700;color:var(--accent2);text-align:right;margin-top:8px;}
+        .toast{position:fixed;bottom:36px;left:50%;transform:translateX(-50%);background:var(--green);color:#fff;padding:9px 20px;border-radius:var(--radius);font-size:11px;font-weight:600;opacity:0;pointer-events:none;z-index:9999;transition:opacity 0.3s;}
+        .toast.show{opacity:1;}
+        /* 优化版式比例 - 全链路5大组方案 - 完全展示文本 */
+        .full-suite-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 18px; overflow: hidden; }
+        .suite-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: #1a1d24; border-bottom: 1px solid var(--border); }
+        .suite-title { font-size: 13px; font-weight: 700; color: var(--accent); }
+        .spaces-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; padding: 14px; }
+        .space-item { background: #0f1117; border: 1px solid var(--border); border-radius: 10px; padding: 10px; transition: 0.1s; }
+        .space-item:hover { border-color: #3a3e48; }
+        .space-name { font-weight: 700; color: var(--accent2); margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; }
+        /* 关键修改：预览框高度自动，完全展示文本，并允许滚动条 */
+        .suite-prompt-preview { 
+            font-size: 10px; 
+            color: #b0b3bc; 
+            background: #0a0c10; 
+            padding: 10px; 
+            border-radius: 6px; 
+            margin: 6px 0; 
+            white-space: pre-wrap; 
+            word-break: break-word; 
+            max-height: none;      /* 移除高度限制，完全展示 */
+            overflow-y: visible;   /* 不强制滚动，如果需要滚动由父容器处理 */
+            line-height: 1.5; 
+        }
+        /* 如果内容过长导致页面溢出，可启用最大高度并滚动，但优先完全展示 */
+        .btn-copy-suite { background: transparent; border: 1px solid var(--border); padding: 3px 10px; border-radius: 20px; font-size: 9px; cursor: pointer; color: var(--label); transition: 0.1s; }
+        .btn-copy-suite:hover { border-color: var(--accent); color: var(--accent); background: rgba(200,164,92,0.1); }
+        .right-scroll { gap: 14px; }
+        @media(max-width:1000px){.main{grid-template-columns:1fr;}.left-panel{height:auto;max-height:45vh;position:relative;top:0;}}
+    </style>
+</head>
+<body>
+<div class="topbar">
+    <div class="topbar-left"><span class="logo">◆ 家装AI · 户型图智析系统</span><span class="topbar-title">全自动设计引擎 | 上传即分析</span></div>
+    <div class="topbar-actions"><span class="badge" id="totalBadge">0组</span><button class="btn-ghost" onclick="clearAll()">清空</button><button class="btn-accent2" onclick="generateFullReport()">📐 全链路分析报告</button><button class="btn-accent" onclick="generatePrompts()">✨ 生成AI设计提示词</button></div>
+</div>
+<div class="main">
+    <div class="left-panel">
+        <div class="left-header"><span class="left-title">🏷️ 户型图智能分析 + 参数控制台</span><span class="selected-count" id="selCount">已选0项</span></div>
+        <div class="left-scroll" id="leftScroll">
+            <!-- 动态注入 upload + 参数区 -->
+        </div>
+    </div>
+    <div class="right-panel"><div class="right-header"><span class="right-title" id="rightTitle">🏡 智能设计输出</span><div class="right-tabs"><button class="right-tab active" data-tab="report" onclick="switchTab('report')">📊 分析报告</button><button class="right-tab" data-tab="prompts" onclick="switchTab('prompts')">📝 提示词</button><button class="right-tab" data-tab="budget" onclick="switchTab('budget')">💰 预算精算</button><button class="right-tab" data-tab="fullsuite" onclick="switchTab('fullsuite')">🏆 全链路5大组方案</button></div><button class="btn-ghost" id="copyAllBtn" onclick="copyAllPrompts()">📋 复制全部提示词</button><button class="btn-ghost" id="copyAllSuiteBtn" onclick="copyAllSuite()" style="display:none;">📋 复制全部5大组</button></div><div class="right-scroll" id="rightScroll"></div></div>
+</div>
+<div class="toast" id="toast">✓ 已复制</div>
+<script>
+(function(){
+    // --------------------------------------------------------------
+    // 全域家装数据库 (所有分类均为多选) - 完全保留原样
+    const CLASSIFICATION_DATA = [
+        { id: "huxing_type", label: "🏠 家装户型系统", multi: true, groups: [
+            { title: "经典户型", options: "一室一厅,一室两厅,两室一厅,两室两厅,三室两厅,三室两卫,四室两厅,四室三卫,五室及以上".split(",").map(v=>({val:v,label:v})) },
+            { title: "特殊形态", options: "大平层,复式,跃层,错层,LOFT,公寓,单身公寓,酒店式公寓,平层住宅".split(",").map(v=>({val:v,label:v})) },
+            { title: "别墅/庭院类", options: "叠拼别墅,联排别墅,双拼别墅,独栋别墅,农村自建房,四合院,中式合院,庭院住宅,海景住宅,山景住宅,顶楼复式,带露台住宅,带花园住宅,带地下室住宅".split(",").map(v=>({val:v,label:v})) }
+        ]},
+        { id: "huxing_structure", label: "📐 户型结构系统", multi: true, groups: [
+            { title: "布局趋势", options: "横厅,竖厅,LDK一体化,餐客厅一体化,客餐厨一体化,开放式布局,半开放式布局,洄游动线布局,双动线布局,回字形动线布局,环形动线布局,中轴对称布局,无主灯布局,横向通厅布局,纵向通厅布局".split(",").map(v=>({val:v,label:v})) },
+            { title: "特色布局", options: "双阳台布局,多阳台布局,双主卧布局,套房式布局,子母房布局,双套房布局,南北通透布局,全明户型布局,暗厅布局,异形户型布局,钻石户型布局".split(",").map(v=>({val:v,label:v})) }
+        ]},
+        { id: "space_system", label: "🛋️ 空间系统", multi: true, groups: [
+            { title: "公共区", options: "玄关,入户花园,客厅,会客厅,家庭厅,茶室,餐厅,西厨,中厨,开放式厨房,封闭式厨房,岛台区,水吧区,咖啡区".split(",").map(v=>({val:v,label:v})) },
+            { title: "私密区", options: "卧室,主卧,老人房,儿童房,女孩房,男孩房,婴儿房,客房,电竞房,书房,家庭办公室,直播间,录音室,衣帽间,步入式衣帽间,化妆间".split(",").map(v=>({val:v,label:v})) },
+            { title: "卫浴家政", options: "卫生间,主卫,客卫,干湿分离卫浴,洗衣房,家政间,储藏室,杂物间,设备间".split(",").map(v=>({val:v,label:v})) },
+            { title: "休闲辅助", options: "健身房,瑜伽室,影音室,家庭影院,棋牌室,收藏室,雪茄室,红酒窖,佛堂,禅修室,阳台,生活阳台,景观阳台,露台,庭院,花园,地下室,车库".split(",").map(v=>({val:v,label:v})) }
+        ]},
+        { id: "function_needs", label: "🎯 空间功能需求系统", multi: true, groups: [
+            { title: "生活核心", options: "收纳优化,亲子互动,老人适老化,无障碍设计,宠物友好,智能家居,全屋定制,极致储物,办公学习,家庭娱乐".split(",").map(v=>({val:v,label:v})) },
+            { title: "社交成长", options: "社交聚会,阅读学习,儿童成长,养老居住,多代同堂,新婚居住,出租改造,民宿运营,直播办公,艺术展示".split(",").map(v=>({val:v,label:v})) }
+        ]},
+        { id: "family_structure", label: "👨‍👩‍👧 家庭结构系统", multi: true, groups: [
+            { title: "家庭构成", options: "单身男性,单身女性,新婚夫妻,二人世界,三口之家,四口之家,二胎家庭,三胎家庭,多代同堂,三代同堂,老人同住,长期独居,合租群体,高净值家庭,宠物家庭".split(",").map(v=>({val:v,label:v})) }
+        ]},
+        { id: "space_scale", label: "📏 空间尺度系统", multi: true, groups: [
+            { title: "面积区间", options: "小户型30㎡以下,小户型30-60㎡,中户型60-90㎡,改善型90-120㎡,舒适型120-150㎡,大宅150-200㎡,豪宅200-300㎡,大平层300㎡以上,别墅500㎡以上".split(",").map(v=>({val:v,label:v})) }
+        ]},
+        { id: "color_system", label: "🎨 颜色系统", multi: true, groups: [
+            { title: "基础中性色", options: "奶油白,象牙白,珍珠白,米白,暖白,纯白,云朵白,奶咖色,奶茶色,燕麦色,浅卡其,深卡其,驼色,焦糖色,摩卡色,咖啡色,原木色,浅橡木色,胡桃木色,深胡桃木色,柚木色,烟熏木色,暖灰色,中灰色,高级灰,水泥灰,岩石灰,深灰色,炭灰色,黑色,曜石黑,深空灰".split(",").map(v=>({val:v,label:v})) },
+            { title: "主题点缀色", options: "莫兰迪粉,藕粉色,豆沙粉,珊瑚粉,樱花粉,雾霾蓝,天空蓝,孔雀蓝,海军蓝,克莱因蓝,鼠尾草绿,橄榄绿,森林绿,墨绿色,翡翠绿,祖母绿,姜黄色,琥珀黄,香槟金,古铜色,玫瑰金,钛金色".split(",").map(v=>({val:v,label:v})) }
+        ]},
+        { id: "wall_surface", label: "🧱 墙面系统", multi: true, groups: [{ title: "墙面材质", options: "乳胶漆,艺术漆,微水泥,硅藻泥,墙布,墙纸,木饰面,格栅板,岩板背景墙,大理石背景墙,护墙板,皮革硬包,布艺软包,金属饰面,镜面不锈钢,镜面玻璃,长虹玻璃,文化石,夯土漆,水磨石墙面,洞石墙面".split(",").map(v=>({val:v,label:v})) }] },
+        { id: "floor_surface", label: "🪵 地面系统", multi: true, groups: [{ title: "地面材质", options: "实木地板,多层实木地板,强化复合地板,人字拼地板,鱼骨拼地板,SPC石晶地板,PVC地板,木纹砖,抛光砖,柔光砖,哑光砖,大理石瓷砖,岩板铺地,水磨石,微水泥地面,天然大理石,天然花岗岩,防腐木地板,户外石材".split(",").map(v=>({val:v,label:v})) }] },
+        { id: "ceiling_system", label: "✨ 顶面系统", multi: true, groups: [{ title: "吊顶设计", options: "双眼皮吊顶,悬浮吊顶,无主灯吊顶,边吊顶,平顶,石膏板吊顶,弧形吊顶,穹顶吊顶,木饰面吊顶,金属格栅吊顶,蜂窝铝板吊顶,镜面吊顶,星空顶,发光顶".split(",").map(v=>({val:v,label:v})) }] },
+        { id: "door_window", label: "🚪 门窗系统", multi: true, groups: [{ title: "门窗类型", options: "隐形门,极窄边框门,长虹玻璃门,铝框玻璃门,推拉门,折叠门,谷仓门,木门,钢木门,系统窗,断桥铝窗,全景落地窗,电动天窗,折叠窗,转角窗".split(",").map(v=>({val:v,label:v})) }] },
+        { id: "storage_system", label: "🗄️ 收纳系统", multi: true, groups: [{ title: "柜体收纳", options: "玄关柜,鞋柜,通顶柜,电视柜,餐边柜,酒柜,展示柜,书柜,榻榻米收纳,地台收纳,步入式衣帽间,嵌入式柜体,隐形收纳柜,阳台柜,洗衣柜,储藏柜,杂物柜,高柜,中柜,吊柜,抽屉柜".split(",").map(v=>({val:v,label:v})) }] },
+        { id: "lighting_system", label: "💡 灯光系统", multi: true, groups: [{ title: "照明方式", options: "主灯照明,无主灯照明,筒灯,射灯,磁吸轨道灯,线性灯,灯带,壁灯,落地灯,台灯,吊灯,水晶灯,氛围灯,柜体灯,地脚灯,夜灯,智能灯光系统".split(",").map(v=>({val:v,label:v})) }] },
+        { id: "smart_system", label: "🤖 智能家居系统", multi: true, groups: [{ title: "智能配置", options: "智能门锁,智能猫眼,智能门铃,智能窗帘,智能灯光,智能空调,智能地暖,智能新风,智能净水,智能音响,全屋控制系统,语音控制系统,智能安防系统,智能监控系统,智能睡眠系统".split(",").map(v=>({val:v,label:v})) }] },
+        { id: "elderly_system", label: "❤️ 适老化系统", multi: true, groups: [{ title: "适老设施", options: "无障碍通道,防滑地面,扶手系统,坐浴系统,紧急呼叫系统,防撞圆角设计,低位收纳系统,轮椅回转空间".split(",").map(v=>({val:v,label:v})) }] },
+        { id: "child_system", label: "🌱 儿童成长系统", multi: true, groups: [{ title: "儿童安全/成长", options: "安全圆角,防夹手设计,成长型书桌,成长型衣柜,阅读区,游戏区,学习区,手工区,亲子互动区".split(",").map(v=>({val:v,label:v})) }] }
+    ];
+
+    const selections = {};
+    CLASSIFICATION_DATA.forEach(c => { selections[c.id] = []; });
+    let projectInfo = { name: '', area: '', floor: '', budget: '', region: '一线城市' };
+    let currentTab = 'report', generatedPrompts = [], fullReport = null;
+    let analysisResultCache = null;
+    // 存储5大组方案数据
+    let fullSuiteData = null;
+    const $ = (s, c=document) => c.querySelector(s);
+    const $$ = (s, c=document) => [...c.querySelectorAll(s)];
+    const dom = { leftScroll:$('#leftScroll'), rightScroll:$('#rightScroll'), selCount:$('#selCount'), totalBadge:$('#totalBadge'), toast:$('#toast'), rightTitle:$('#rightTitle'), copyAllBtn:$('#copyAllBtn'), copyAllSuiteBtn:$('#copyAllSuiteBtn') };
+    let toastTimer;
+
+    // ------------------ 智能户型分析模拟引擎 (完全保留) ------------------
+    function simulateIntelligentAnalysis(file) {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                const mockResults = {
+                    houseType: "三室两厅",
+                    structureTags: ["横厅", "LDK一体化", "南北通透", "双阳台"],
+                    spaceTags: ["客厅", "餐厅", "主卧", "儿童房", "书房", "主卫", "客卫", "阳台"],
+                    area: 125,
+                    orientation: "南",
+                    lightingLevel: 85,
+                    ventilationLevel: 78,
+                    storageLevel: 70,
+                    spaceUtilization: 82,
+                    comfortLevel: 88,
+                    advantages: "南北通透，双阳台采光佳，动静分区合理",
+                    disadvantages: "次卧面积偏小，厨房操作台面略紧凑",
+                    renovationPotential: "可拆除非承重墙实现LDK一体化，主卧可增步入式衣帽间",
+                    fengshui: "入户见厅财位通，卧室靠山吉",
+                    recommendations: "建议增加全屋收纳系统，儿童房采用成长型家具"
+                };
+                resolve(mockResults);
+            }, 1800);
+        });
+    }
+
+    async function handleUpload(file) {
+        if(!file) return;
+        const statusDiv = document.getElementById('uploadStatus');
+        const resultDiv = document.getElementById('analysisResult');
+        statusDiv.innerHTML = '🔍 AI正在识别户型图... 分析墙体、门窗、动线';
+        resultDiv.innerHTML = '<div class="score-bar"><div class="score-fill" style="width:30%"></div></div><p style="margin-top:5px">识别中...</p>';
+        const analysis = await simulateIntelligentAnalysis(file);
+        analysisResultCache = analysis;
+        applyAnalysisToSelections(analysis);
+        let html = `<div style="font-size:10px;"><strong>🏷️ 识别户型：</strong>${analysis.houseType}<br>
+        <strong>📐 结构特征：</strong>${analysis.structureTags.join('、')}<br>
+        <strong>🛋️ 主要空间：</strong>${analysis.spaceTags.slice(0,6).join('、')}<br>
+        <strong>🧭 朝向：</strong>${analysis.orientation}<br>
+        <strong>📏 建筑面积估测：</strong>${analysis.area}㎡<br>
+        <hr><strong>🌟 综合评分</strong><br>采光等级: ${analysis.lightingLevel}分 <div class="score-bar"><div class="score-fill" style="width:${analysis.lightingLevel}%"></div></div>
+        通风等级: ${analysis.ventilationLevel}分 <div class="score-bar"><div class="score-fill" style="width:${analysis.ventilationLevel}%"></div></div>
+        收纳等级: ${analysis.storageLevel}分 <div class="score-bar"><div class="score-fill" style="width:${analysis.storageLevel}%"></div></div>
+        空间利用率: ${analysis.spaceUtilization}分 <div class="score-bar"><div class="score-fill" style="width:${analysis.spaceUtilization}%"></div></div>
+        舒适度: ${analysis.comfortLevel}分<br>
+        <strong>✅ 优点：</strong>${analysis.advantages}<br>
+        <strong>⚠️ 缺点：</strong>${analysis.disadvantages}<br>
+        <strong>🔧 改造潜力：</strong>${analysis.renovationPotential}<br>
+        <strong>🌿 风水建议：</strong>${analysis.fengshui}<br>
+        <strong>💡 AI设计建议：</strong>${analysis.recommendations}</div>`;
+        resultDiv.innerHTML = html;
+        statusDiv.innerHTML = '✅ 分析完成！已自动匹配参数数据库';
+        showToast('户型分析完成，参数已自动填充');
+        updateTagSelectionsFromStore();
+        updateSelCount();
+        // 分析完成后自动重新生成5大组方案
+        generateFullSuite();
+    }
+
+    function applyAnalysisToSelections(analysis) {
+        if(analysis.houseType) selections['huxing_type'] = [analysis.houseType];
+        if(analysis.structureTags) selections['huxing_structure'] = analysis.structureTags;
+        if(analysis.spaceTags) selections['space_system'] = analysis.spaceTags.slice(0,8);
+        let areaVal = analysis.area;
+        if(areaVal) {
+            if(areaVal<60) selections['space_scale'] = ['中户型60-90㎡'];
+            else if(areaVal<90) selections['space_scale'] = ['改善型90-120㎡'];
+            else if(areaVal<150) selections['space_scale'] = ['舒适型120-150㎡'];
+            else selections['space_scale'] = ['大宅150-200㎡'];
+            projectInfo.area = areaVal;
+            const areaInput = $('#pi_area'); if(areaInput) areaInput.value = areaVal;
+        }
+        let funcNeeds = [];
+        if(analysis.storageLevel < 75) funcNeeds.push('收纳优化');
+        if(analysis.ventilationLevel < 80) funcNeeds.push('智能新风');
+        funcNeeds.push('全屋定制');
+        selections['function_needs'] = funcNeeds;
+        selections['lighting_system'] = ['无主灯照明', '磁吸轨道灯'];
+        if(projectInfo.budget === '') projectInfo.budget = '35';
+    }
+
+    function updateTagSelectionsFromStore() {
+        for(let field in selections) {
+            let vals = selections[field];
+            if(vals && vals.length) {
+                $$(`.tag[data-field="${field}"]`, dom.leftScroll).forEach(tag => {
+                    if(vals.includes(tag.dataset.val)) tag.classList.add('multi-selected');
+                    else tag.classList.remove('multi-selected');
+                });
+            }
+        }
+    }
+
+    // ---------- 构建左侧面板 (完整保留) ----------
+    function buildLeft() {
+        let html = `<div class="upload-area">
+            <div class="upload-label" onclick="document.getElementById('houseplanInput').click()">📤 上传户型图 (CAD/图片/手绘)</div>
+            <input type="file" id="houseplanInput" accept="image/*,application/pdf,.dwg,.dxf" style="display:none" onchange="handleFileUpload(this.files[0])">
+            <div id="uploadStatus" class="upload-status">支持JPG,PNG,PDF,CAD，AI自动识别</div>
+            <div id="analysisResult" class="analysis-result" style="display:block;">等待上传户型图...</div>
+        </div>
+        <div class="accordion open"><div class="accordion-header" onclick="toggleAccordion(this)"><span class="accordion-label">📋 项目信息</span><span class="accordion-icon">▼</span></div><div class="accordion-body">
+            <div class="input-row"><label>项目名称</label><input id="pi_name" placeholder="例如：云栖蝶谷"></div>
+            <div class="input-row"><label>室内面积(平方米)</label><input id="pi_area" type="number" placeholder="145"></div>
+            <div class="input-row"><label>层高(米)</label><input id="pi_floor" type="number" step="0.1" placeholder="2.9"></div>
+            <div class="input-row"><label>硬装预算(万元)</label><input id="pi_budget" type="number" placeholder="45"></div>
+            <div class="input-row"><label>城市等级</label><select id="pi_region"><option>一线城市</option><option>新一线</option><option>二线城市</option><option>三四线</option></select></div>
+        </div></div>`;
+        CLASSIFICATION_DATA.forEach((cat, idx) => {
+            let open = idx <= 3;
+            html += `<div class="accordion ${open?'open':''}"><div class="accordion-header" onclick="toggleAccordion(this)"><span class="accordion-label">${cat.icon || '📌'} ${cat.label}</span><span class="accordion-icon">▼</span></div><div class="accordion-body">`;
+            cat.groups.forEach(g => {
+                html += `<div class="tag-group"><div class="tag-group-title">${g.title}</div><div class="tags" data-field="${cat.id}" data-multi="true">`;
+                g.options.forEach(o => html += `<span class="tag" data-val="${o.val}" data-field="${cat.id}" data-multi="true">${o.label}</span>`);
+                html += `</div></div>`;
+            });
+            html += `</div></div>`;
+        });
+        dom.leftScroll.innerHTML = html;
+        $$('.tag[data-field]', dom.leftScroll).forEach(t => t.addEventListener('click', handleTag));
+        ['name','area','floor','budget'].forEach(k => { let el = $('#pi_'+k); if(el) el.addEventListener('input', () => { projectInfo[k] = el.value; }); });
+        let regEl = $('#pi_region'); if(regEl){ regEl.addEventListener('change', ()=>{ projectInfo.region=regEl.value; }); projectInfo.region=regEl.value; }
+        updateTagSelectionsFromStore();
+        updateSelCount();
+    }
+
+    window.handleFileUpload = (file) => { if(file) handleUpload(file); };
+    function toggleAccordion(header){ header.closest('.accordion').classList.toggle('open'); }
+    function handleTag(e){
+        let t = e.target.closest('.tag'); if(!t||!t.dataset.field) return;
+        let field = t.dataset.field, val = t.dataset.val;
+        t.classList.toggle('multi-selected');
+        selections[field] = $$(`.tag[data-field="${field}"].multi-selected`, dom.leftScroll).map(x=>x.dataset.val);
+        updateSelCount();
+        // 参数改变后自动重新生成5大组方案
+        generateFullSuite();
+    }
+    function updateSelCount(){ let c=0; Object.values(selections).forEach(v=>{ if(Array.isArray(v)) c+=v.length; }); dom.selCount.textContent='已选'+c+'项'; }
+    function getSel(id){ return selections[id] || []; }
+
+    // 复制工具函数 (完整保留)
+    function copyText(text, btn){ 
+        let fallback=()=>{ let ta=document.createElement('textarea'); ta.value=text; ta.style.cssText='position:fixed;left:-9999px;top:-9999px;'; document.body.appendChild(ta); ta.select(); let ok=document.execCommand('copy'); document.body.removeChild(ta); if(ok) copySuccess(btn); else copyError(btn); }; 
+        if(navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(()=>copySuccess(btn)).catch(fallback); else fallback(); 
+    }
+    function copySuccess(btn){ if(btn){ btn.classList.add('copied'); btn.textContent='✓ 已复制'; setTimeout(()=>{ btn.classList.remove('copied'); btn.textContent='📋 复制'; },1800); } showToast('✅ 已复制'); }
+    function copyError(btn){ if(btn){ btn.textContent='⚠ 重试'; setTimeout(()=>{ btn.textContent='📋 复制'; },2000); } showToast('❌ 复制失败'); }
+    function showToast(msg){ if(toastTimer)clearTimeout(toastTimer); dom.toast.textContent=msg; dom.toast.classList.add('show'); toastTimer=setTimeout(()=>dom.toast.classList.remove('show'),2500); }
+
+    // 报告生成 (完整保留)
+    function generateFullReport(){
+        let huxing = getSel('huxing_type').join('、') || (analysisResultCache?.houseType || '未选择');
+        let structure = getSel('huxing_structure').join('、') || (analysisResultCache?.structureTags?.join('、')||'未选择');
+        let spaces = getSel('space_system').slice(0,4).join('、');
+        let functions = getSel('function_needs').slice(0,3).join('、');
+        let family = getSel('family_structure').join('、') || '未指定';
+        let scale = getSel('space_scale').join('、');
+        let colors = getSel('color_system').slice(0,2).join('、');
+        let lighting = getSel('lighting_system').slice(0,2).join('、');
+        let rec = analysisResultCache?.recommendations || '基于户型分析，优化收纳与动线';
+        let reportHTML = `<div class="report-card"><h3>🏆 AI智能设计报告 (基于户型图分析)</h3>
+        <p><strong>🏠 户型识别：</strong>${huxing}  |  <strong>📐 结构特征：</strong>${structure}</p>
+        <p><strong>🛋️ 核心空间：</strong>${spaces}  |  <strong>🎯 功能匹配：</strong>${functions}</p>
+        <p><strong>👨‍👩‍👧 家庭适配：</strong>${family}  |  <strong>📏 尺度：</strong>${scale}</p>
+        <p><strong>🎨 色彩方案：</strong>${colors}  |  <strong>💡 照明策略：</strong>${lighting}</p>
+        <p><strong>✨ 设计策略：</strong>${rec}</p>
+        <p><em>📌 智能数据库：全屋动线·人体工学·收纳系统·AI户型解析引擎</em></p></div>
+        <div class="report-card"><h3>💰 动态预算预估</h3><div id="budgetSummary"></div></div>`;
+        fullReport = reportHTML;
+        if(currentTab === 'report') dom.rightScroll.innerHTML = fullReport;
+        renderBudgetSummary();
+        showToast('✅ 全链路分析报告已生成');
+    }
+    function renderBudgetSummary(){
+        let area = parseFloat(projectInfo.area) || (analysisResultCache?.area || 120);
+        let base = area * 1950, custom = area * 480, smart = getSel('smart_system').length * 3200;
+        let total = base + custom + smart;
+        let html = `<table class="budget-table"><tr><th>项目</th><th>预估(元)</th><tr><td>基础硬装</th><td>${Math.round(base).toLocaleString()}</td><tr>
+        <tr><th>定制收纳</th><td>${Math.round(custom).toLocaleString()}</td></tr>
+        <tr><th>智能预埋</th><td>${Math.round(smart).toLocaleString()}</td></tr>
+        <tr><div class="budget-total">总计 ≈ ${(total/10000).toFixed(1)}万元</div>`;
+        let el = $('#budgetSummary'); if(el) el.innerHTML = html;
+    }
+    function generatePrompts(){ 
+        let huxing = getSel('huxing_type')[0] || '现代住宅';
+        let style = '现代轻奢';
+        let structure = getSel('huxing_structure').slice(0,2).join('-') || 'LDK一体化';
+        let spaceTags = getSel('space_system').slice(0,2).join('、') || '全屋';
+        let funcs = getSel('function_needs').slice(0,2).join('、') || '舒适居住';
+        let colors = getSel('color_system').slice(0,2).join('+') || '奶油白+原木色';
+        let wall = getSel('wall_surface')[0] || '微水泥';
+        let floor = getSel('floor_surface')[0] || '木地板';
+        let lighting = getSel('lighting_system')[0] || '无主灯';
+        let smart = getSel('smart_system')[0] || '智能灯光';
+        let prompts=[]; for(let i=0;i<20;i++){ let text=`【${style}】${huxing}·${structure}·${spaceTags}，功能融合${funcs}，主色调${colors}，${wall}墙面+${floor}地面，${lighting}氛围，${smart}联动，电影级超写实，超广角构图。`; prompts.push({id:i+1,text}); }
+        generatedPrompts=prompts; dom.totalBadge.textContent=prompts.length+'组'; if(currentTab === 'prompts') renderPrompts();
+    }
+    function renderPrompts(){ let html=''; generatedPrompts.forEach(p=>{ html+=`<div class="prompt-card"><span class="prompt-num">提示词 ${p.id}</span><div class="prompt-text">${p.text}</div><button class="btn-copy" onclick="copySinglePrompt(${p.id}, this)">📋 复制</button></div>`; }); dom.rightScroll.innerHTML=html; }
+    function copySinglePrompt(id,btn){ let p=generatedPrompts.find(x=>x.id===id); if(p) copyText(p.text,btn); }
+    function copyAllPrompts(){ if(!generatedPrompts.length){ showToast('请先生成提示词'); return; } copyText(generatedPrompts.map(p=>`【${p.id}】${p.text}`).join('\n\n'),null); }
+    function renderBudgetFull(){ let area=parseFloat(projectInfo.area)||120; let hard=area*1950, custom=area*480, total=hard+custom; dom.rightScroll.innerHTML=`<div class="report-card"><h3>精算报价</h3><div class="budget-total">预估 ¥${(total/10000).toFixed(1)}万</div></div>`; }
+    function clearAll(){ CLASSIFICATION_DATA.forEach(c=>{ selections[c.id]=[]; }); $$('.tag',dom.leftScroll).forEach(t=>t.classList.remove('multi-selected')); projectInfo={name:'',area:'',floor:'',budget:'',region:'一线城市'}; generatedPrompts=[]; fullReport=null; fullSuiteData=null; dom.totalBadge.textContent='0组'; updateSelCount(); dom.rightScroll.innerHTML='<div class="report-card"><p>已清空，请上传户型图或选择参数。</p></div>'; switchTab('report'); }
+
+    // ========== 新增：5大组全链路方案生成逻辑 (版式比例已优化，完全展示文本) ==========
+    function generateFullSuite() {
+        // 获取当前所有参数
+        let houseType = getSel('huxing_type')[0] || (analysisResultCache?.houseType || "三房两厅");
+        let structureTags = getSel('huxing_structure');
+        let structureDesc = structureTags.length ? structureTags.join('、') : "横厅+LDK一体化";
+        let colorSys = getSel('color_system');
+        let colorDesc = colorSys.length ? colorSys.slice(0,3).join('、') : "奶油白、浅橡木、暖灰色";
+        let wallMat = getSel('wall_surface')[0] || "微水泥墙面";
+        let floorMat = getSel('floor_surface')[0] || "哑光柔光砖";
+        let lightingSys = getSel('lighting_system')[0] || "无主灯磁吸轨道灯+线性灯带";
+        let smartSys = getSel('smart_system').slice(0,2).join('、') || "智能灯光系统";
+        let funcNeeds = getSel('function_needs').slice(0,3).join('、') || "全屋收纳";
+        let areaVal = projectInfo.area || (analysisResultCache?.area || 115);
+        let styleDefault = "意式轻奢";  // 统一风格
+        
+        // 统一设计体系描述
+        const designSystem = `风格：${styleDefault} | 色彩体系：${colorDesc} | 材质体系：墙面${wallMat}，地面${floorMat} | 灯光体系：${lightingSys} | 软装体系：绒布沙发、岩板餐桌、丝绒窗帘、艺术挂画 | 智能配置：${smartSys} | 功能需求：${funcNeeds}`;
+        
+        // 1. 整体空间方案提示词
+        const overallPrompt = `【全屋整体空间方案】\n${designSystem}\n户型：${houseType}，面积约${areaVal}㎡。采用超广角连续透视构图，统一呈现玄关、客厅、餐厅、厨房、主卧、次卧、儿童房、卫生间、阳台九大功能区。客厅为核心枢纽，连接餐厅与开放式厨房形成LDK一体化，主卧套间强调私密舒适，儿童房温馨明亮，卫生间干湿分离，阳台与客厅互通引入自然光。全屋统一${styleDefault}风格，材质统一，灯光统一。摄影级超写实渲染，8K分辨率，室内建筑摄影，禁止分割画面。 --ar 16:9 --style raw`;
+        
+        // 2. 分空间方案（9个）
+        const spaces = {
+            xuan_guan: { name: "玄关", text: `${designSystem}\n【玄关空间】入户第一印象，通顶鞋柜+换鞋凳+端景台，线性灯带引导动线，地面与客厅材质统一延伸，镜面扩大空间感。超写实渲染，人眼视角。 --ar 16:9` },
+            living: { name: "客厅", text: `${designSystem}\n【客厅空间】核心社交区，模块沙发+茶几+电视墙/投影，无主灯设计，落地窗引入自然光，地毯与艺术品提升质感，绿植点缀。超广角，电影级光影。 --ar 16:9` },
+            dining: { name: "餐厅", text: `${designSystem}\n【餐厅空间】岩板餐桌+皮餐椅，吊灯聚焦，餐边柜兼酒柜，与客厅互通形成流畅动线，氛围照明营造用餐仪式感。 --ar 16:9` },
+            kitchen: { name: "厨房", text: `${designSystem}\n【厨房空间】开放式/半开放式，U型或L型布局，岛台+高柜，内嵌电器，防油污材质，照明充足，操作台面宽敞。 --ar 16:9` },
+            master: { name: "主卧", text: `${designSystem}\n【主卧空间】静谧睡眠区，双人床+床头柜+衣柜，背景墙软包/木饰面，遮光窗帘，阅读壁灯，暖光舒适，衣帽间/梳妆区整合。 --ar 16:9` },
+            second: { name: "次卧", text: `${designSystem}\n【次卧空间】多功能客房/老人房，榻榻米或标准床，简约衣柜，书桌预留，柔光照明，适老化细节可选。 --ar 16:9` },
+            kids: { name: "儿童房", text: `${designSystem}\n【儿童房空间】成长型设计，上下床/单人床+学习区+游戏地垫，色彩活泼安全，圆角家具，储物丰富。 --ar 16:9` },
+            bathroom: { name: "卫生间", text: `${designSystem}\n【卫生间空间】干湿三分离，双台盆/独立淋浴房，防滑地砖，镜柜+壁龛收纳，暖风照明一体，高级质感。 --ar 16:9` },
+            balcony: { name: "阳台", text: `${designSystem}\n【阳台空间】生活+休闲一体，洗衣区收纳柜，绿植点缀，与客厅打通形成地台或玻璃移门，引入自然光。 --ar 16:9` }
+        };
+        
+        // 3. 全屋平面布局方案提示词
+        const layoutPrompt = `${designSystem}\n【全屋平面布局方案】CAD建筑平面图风格，展示${houseType}完整户型结构，比例1:50。包含：墙体、门窗、承重墙、功能分区（玄关、客厅、餐厅、厨房、主卧、次卧、儿童房、卫生间、阳台、储物区）。家具模块按人体工程学布置（沙发、餐桌、床、衣柜、洗手台）。动线箭头表示主动线与次动线，采光通风图示虚线标注窗位置。彩平图风格，不同区域淡色区分，顶部标注长宽尺寸及面积，专业室内设计制图规范。 --ar 1:1 --no color`;
+        
+        // 4. 全屋施工深化方案提示词
+        const constructionPrompt = `${designSystem}\n【全屋施工深化方案】工程制图套件，包含：①天花吊顶图(标高+灯具定位) ②地面铺装图(材质拼缝+标高) ③墙面立面图(背景墙/柜体尺寸) ④水电布置图(强弱电点位+给排水) ⑤灯光布置图(回路+色温标注) ⑥柜体定制图(结构+收口) ⑦节点工艺大样(阴阳角/收口/防水) ⑧CAD施工图标准表达。白色/黑色背景，线条清晰，标注材料编号及施工说明。专业深化设计图纸风格。 --ar 16:9`;
+        
+        // 5. 全屋展示提案方案提示词
+        const proposalPrompt = `${designSystem}\n【全屋展示提案方案】全案设计汇报图集：①全屋鸟瞰图(整体布局) ②全屋漫游轴测图 ③客餐厅联动透视图 ④昼景自然光效果 ⑤夜景暖光氛围 ⑥软装搭配拼图 ⑦材质工艺特写(木饰面/岩板/微水泥) ⑧设计概念展板。统一${styleDefault}调性，电影级调色，版式干净，展示设计逻辑与生活方式。适用于设计提案/营销展示。 --ar 16:9`;
+        
+        fullSuiteData = { overall: overallPrompt, spaces, layout: layoutPrompt, construction: constructionPrompt, proposal: proposalPrompt };
+        
+        // 如果当前在fullsuite标签页，则刷新渲染
+        if(currentTab === 'fullsuite') renderFullSuite();
+    }
+    
+    function renderFullSuite() {
+        if(!fullSuiteData) {
+            dom.rightScroll.innerHTML = '<div class="report-card"><p>请先选择户型参数或上传户型图，系统将自动生成5大组全链路方案。</p></div>';
+            return;
+        }
+        let data = fullSuiteData;
+        let html = `
+            <!-- 第1组：全屋空间方案 -->
+            <div class="full-suite-card">
+                <div class="suite-header"><div class="suite-title">① 全屋空间方案提示词 (整体统一场景)</div><button class="btn-copy-suite" onclick="copySuiteItem('overall')">📋 复制本段</button></div>
+                <div style="padding: 14px;"><div class="suite-prompt-preview" id="suite_overall">${escapeHtml(data.overall)}</div></div>
+            </div>
+            <!-- 第2组：分空间方案 9个独立卡片 -->
+            <div class="full-suite-card">
+                <div class="suite-header"><div class="suite-title">② 分空间方案提示词 (9大区域独立复制)</div></div>
+                <div class="spaces-grid" id="suiteSpacesGrid"></div>
+            </div>
+            <!-- 第3组：平面布局方案 -->
+            <div class="full-suite-card">
+                <div class="suite-header"><div class="suite-title">③ 平面布局方案提示词</div><button class="btn-copy-suite" onclick="copySuiteItem('layout')">📋 复制本段</button></div>
+                <div style="padding: 14px;"><div class="suite-prompt-preview" id="suite_layout">${escapeHtml(data.layout)}</div></div>
+            </div>
+            <!-- 第4组：施工深化方案 -->
+            <div class="full-suite-card">
+                <div class="suite-header"><div class="suite-title">④ 施工深化方案提示词</div><button class="btn-copy-suite" onclick="copySuiteItem('construction')">📋 复制本段</button></div>
+                <div style="padding: 14px;"><div class="suite-prompt-preview" id="suite_construction">${escapeHtml(data.construction)}</div></div>
+            </div>
+            <!-- 第5组：展示提案方案 -->
+            <div class="full-suite-card">
+                <div class="suite-header"><div class="suite-title">⑤ 展示提案方案提示词</div><button class="btn-copy-suite" onclick="copySuiteItem('proposal')">📋 复制本段</button></div>
+                <div style="padding: 14px;"><div class="suite-prompt-preview" id="suite_proposal">${escapeHtml(data.proposal)}</div></div>
+            </div>
+        `;
+        dom.rightScroll.innerHTML = html;
+        // 填充空间网格
+        const grid = document.getElementById('suiteSpacesGrid');
+        if(grid && data.spaces) {
+            let spacesHtml = '';
+            for(let [key, val] of Object.entries(data.spaces)) {
+                spacesHtml += `
+                    <div class="space-item">
+                        <div class="space-name">${val.name}<button class="btn-copy-suite" onclick="copySuiteSpace('${key}')">复制</button></div>
+                        <div class="suite-prompt-preview" style="max-height: none;">${escapeHtml(val.text)}</div>
+                    </div>
+                `;
+            }
+            grid.innerHTML = spacesHtml;
+        }
+    }
+    
+    function copySuiteItem(type) {
+        if(!fullSuiteData) return;
+        let text = '';
+        if(type === 'overall') text = fullSuiteData.overall;
+        else if(type === 'layout') text = fullSuiteData.layout;
+        else if(type === 'construction') text = fullSuiteData.construction;
+        else if(type === 'proposal') text = fullSuiteData.proposal;
+        if(text) copyText(text, null);
+        else showToast('未找到内容');
+    }
+    function copySuiteSpace(spaceKey) {
+        if(fullSuiteData && fullSuiteData.spaces[spaceKey]) {
+            copyText(fullSuiteData.spaces[spaceKey].text, null);
+        } else showToast('未找到');
+    }
+    function copyAllSuite() {
+        if(!fullSuiteData) { showToast('请先生成全链路方案'); return; }
+        let allText = `【全屋空间方案】\n${fullSuiteData.overall}\n\n---\n\n`;
+        for(let [key,val] of Object.entries(fullSuiteData.spaces)) {
+            allText += `【${val.name}空间】\n${val.text}\n\n---\n\n`;
+        }
+        allText += `【平面布局方案】\n${fullSuiteData.layout}\n\n---\n\n`;
+        allText += `【施工深化方案】\n${fullSuiteData.construction}\n\n---\n\n`;
+        allText += `【展示提案方案】\n${fullSuiteData.proposal}`;
+        copyText(allText, null);
+    }
+    
+    function escapeHtml(str) {
+        if(!str) return '';
+        return str.replace(/[&<>]/g, function(m) { if(m === '&') return '&amp;'; if(m === '<') return '&lt;'; if(m === '>') return '&gt;'; return m; });
+    }
+    
+    // 标签页切换（修改以支持新标签页）
+    function switchTab(tab){
+        currentTab=tab; 
+        $$('.right-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+        if(tab === 'prompts'){
+            dom.copyAllBtn.style.display = 'inline-block';
+            dom.copyAllSuiteBtn.style.display = 'none';
+            dom.rightTitle.textContent = '📝 AI提示词库';
+            if(generatedPrompts.length) renderPrompts();
+            else dom.rightScroll.innerHTML = '<div class="report-card"><p>请点击顶部「生成AI设计提示词」</p></div>';
+        } else if(tab === 'report'){
+            dom.copyAllBtn.style.display = 'none';
+            dom.copyAllSuiteBtn.style.display = 'none';
+            dom.rightTitle.textContent = '📊 分析报告';
+            if(fullReport) dom.rightScroll.innerHTML = fullReport;
+            else generateFullReport();
+        } else if(tab === 'budget'){
+            dom.copyAllBtn.style.display = 'none';
+            dom.copyAllSuiteBtn.style.display = 'none';
+            dom.rightTitle.textContent = '💰 报价精算';
+            renderBudgetFull();
+        } else if(tab === 'fullsuite'){
+            dom.copyAllBtn.style.display = 'none';
+            dom.copyAllSuiteBtn.style.display = 'inline-block';
+            dom.rightTitle.textContent = '🏆 全链路5大组方案';
+            if(fullSuiteData) renderFullSuite();
+            else { generateFullSuite(); renderFullSuite(); }
+        }
+    }
+    
+    // 暴露新方法给全局
+    window.copySuiteItem = copySuiteItem;
+    window.copySuiteSpace = copySuiteSpace;
+    window.copyAllSuite = copyAllSuite;
+    window.generateFullSuite = generateFullSuite;
+    
+    // 原有全局方法保留
+    window.toggleAccordion = toggleAccordion;
+    window.generateFullReport = generateFullReport;
+    window.generatePrompts = generatePrompts;
+    window.copySinglePrompt = copySinglePrompt;
+    window.copyAllPrompts = copyAllPrompts;
+    window.clearAll = clearAll;
+    window.switchTab = switchTab;
+    
+    // 初始化
+    buildLeft(); 
+    updateSelCount(); 
+    setTimeout(()=>{
+        generateFullReport();
+        generateFullSuite();   // 预生成5大组方案
+    },200);
+})();
+</script>
+</body>
+</html>
