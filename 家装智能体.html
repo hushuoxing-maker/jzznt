@@ -91,9 +91,8 @@
         .budget-table{width:100%;border-collapse:collapse;font-size:10px;margin-top:6px;}
         .budget-table th,.budget-table td{padding:6px 8px;border-bottom:1px solid var(--border);text-align:left;}
         .budget-total{font-size:15px;font-weight:700;color:var(--accent2);text-align:right;margin-top:8px;}
-        .toast{position:fixed;bottom:36px;left:50%;transform:translateX(-50%);background:var(--green);color:#fff;padding:9px 20px;border-radius:var(--radius);font-size:11px;font-weight:600;opacity:0;pointer-events:none;z-index:9999;transition:opacity 0.3s;}
+        .toast{position:fixed;bottom:36px;left:50%;transform:translateX(-50%);background:var(--green);color:#fff;padding:9px 20px;border-radius:var(--radius);font-size:11px;font-weight:600;opacity:0;pointer-events:none;z-index:9999;transition:opacity 0.3s;z-index:10001;}
         .toast.show{opacity:1;}
-        /* 5组方案样式 */
         .suite-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
         .suite-tab { background: transparent; border: 1px solid var(--border); padding: 6px 20px; border-radius: 30px; font-size: 11px; cursor: pointer; color: var(--label); }
         .suite-tab.active { background: var(--accent); color: #111; border-color: var(--accent); }
@@ -195,8 +194,8 @@
     let projectInfo = { name: '', area: '', floor: '', budget: '', region: '一线城市' };
     let currentTab = 'report', generatedPrompts = [], fullReport = null;
     let analysisResultCache = null;
-    let fullSuites = [];           // 存储5组方案数据
-    let currentSuiteIndex = 0;    // 当前选中的方案索引
+    let fullSuites = [];
+    let currentSuiteIndex = 0;
     const $ = (s, c=document) => c.querySelector(s);
     const $$ = (s, c=document) => [...c.querySelectorAll(s)];
     const dom = { leftScroll:$('#leftScroll'), rightScroll:$('#rightScroll'), selCount:$('#selCount'), totalBadge:$('#totalBadge'), toast:$('#toast'), rightTitle:$('#rightTitle'), copyAllBtn:$('#copyAllBtn'), copyAllSuiteBtn:$('#copyAllSuiteBtn') };
@@ -257,7 +256,7 @@
         showToast('户型分析完成，参数已自动填充');
         updateTagSelectionsFromStore();
         updateSelCount();
-        generateAllSuites(); // 重新生成5组方案
+        generateAllSuites();
     }
 
     function applyAnalysisToSelections(analysis) {
@@ -334,18 +333,83 @@
         t.classList.toggle('multi-selected');
         selections[field] = $$(`.tag[data-field="${field}"].multi-selected`, dom.leftScroll).map(x=>x.dataset.val);
         updateSelCount();
-        generateAllSuites(); // 参数变化时重新生成5组方案
+        generateAllSuites();
     }
     function updateSelCount(){ let c=0; Object.values(selections).forEach(v=>{ if(Array.isArray(v)) c+=v.length; }); dom.selCount.textContent='已选'+c+'项'; }
     function getSel(id){ return selections[id] || []; }
 
-    function copyText(text, btn){ 
-        let fallback=()=>{ let ta=document.createElement('textarea'); ta.value=text; ta.style.cssText='position:fixed;left:-9999px;top:-9999px;'; document.body.appendChild(ta); ta.select(); let ok=document.execCommand('copy'); document.body.removeChild(ta); if(ok) copySuccess(btn); else copyError(btn); }; 
-        if(navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(()=>copySuccess(btn)).catch(fallback); else fallback(); 
+    // 增强复制功能：支持 Clipboard API + fallback
+    function copyToClipboard(text, btnElement) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                handleCopySuccess(btnElement);
+            }).catch(() => {
+                fallbackCopy(text, btnElement);
+            });
+        } else {
+            fallbackCopy(text, btnElement);
+        }
     }
-    function copySuccess(btn){ if(btn){ btn.classList.add('copied'); btn.textContent='✓ 已复制'; setTimeout(()=>{ btn.classList.remove('copied'); btn.textContent='📋 复制'; },1800); } showToast('✅ 已复制'); }
-    function copyError(btn){ if(btn){ btn.textContent='⚠ 重试'; setTimeout(()=>{ btn.textContent='📋 复制'; },2000); } showToast('❌ 复制失败'); }
-    function showToast(msg){ if(toastTimer)clearTimeout(toastTimer); dom.toast.textContent=msg; dom.toast.classList.add('show'); toastTimer=setTimeout(()=>dom.toast.classList.remove('show'),2500); }
+    function fallbackCopy(text, btnElement) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        textarea.style.top = '-9999px';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        let success = false;
+        try {
+            success = document.execCommand('copy');
+        } catch (err) {
+            success = false;
+        }
+        document.body.removeChild(textarea);
+        if (success) {
+            handleCopySuccess(btnElement);
+        } else {
+            handleCopyError(btnElement);
+        }
+    }
+    function handleCopySuccess(btnElement) {
+        if (btnElement) {
+            const originalText = btnElement.textContent;
+            btnElement.textContent = '✓ 已复制';
+            btnElement.classList.add('copied');
+            setTimeout(() => {
+                btnElement.textContent = originalText;
+                btnElement.classList.remove('copied');
+            }, 2000);
+        }
+        showToast('✅ 已复制');
+    }
+    function handleCopyError(btnElement) {
+        if (btnElement) {
+            const original = btnElement.textContent;
+            btnElement.textContent = '⚠ 失败';
+            setTimeout(() => {
+                btnElement.textContent = original;
+            }, 2000);
+        }
+        showToast('❌ 复制失败');
+    }
+    function showToast(msg) {
+        if (toastTimer) clearTimeout(toastTimer);
+        const toast = $('#toast');
+        toast.textContent = msg;
+        toast.classList.add('show');
+        toastTimer = setTimeout(() => {
+            toast.classList.remove('show');
+        }, 2500);
+    }
+    window.copyText = function(text, btnElement) {
+        if (!text) {
+            showToast('❌ 内容为空');
+            return;
+        }
+        copyToClipboard(text, btnElement);
+    };
 
     function generateFullReport(){
         let huxing = getSel('huxing_type').join('、') || (analysisResultCache?.houseType || '未选择');
@@ -374,9 +438,9 @@
         let area = parseFloat(projectInfo.area) || (analysisResultCache?.area || 120);
         let base = area * 1950, custom = area * 480, smart = getSel('smart_system').length * 3200;
         let total = base + custom + smart;
-        let html = `<table class="budget-table"><tr><th>项目</th><th>预估(元)</th></tr><tr><td>基础硬装</td><td>${Math.round(base).toLocaleString()}</td></tr>
-        <tr><td>定制收纳</td><td>${Math.round(custom).toLocaleString()}</td></tr>
-        <tr><td>智能预埋</td><td>${Math.round(smart).toLocaleString()}</td></tr>
+        let html = `<table class="budget-table"><tr><th>项目</th><th>预估(元)</th><tr><tr><th>基础硬装</th><td>${Math.round(base).toLocaleString()}</td></tr>
+        <tr><th>定制收纳</th><td>${Math.round(custom).toLocaleString()}</td></tr>
+        <tr><th>智能预埋</th><td>${Math.round(smart).toLocaleString()}NonNullList}
         </table><div class="budget-total">总计 ≈ ${(total/10000).toFixed(1)}万元</div>`;
         let el = $('#budgetSummary'); if(el) el.innerHTML = html;
     }
@@ -394,9 +458,8 @@
         let prompts=[]; for(let i=0;i<20;i++){ let text=`【${style}】${huxing}·${structure}·${spaceTags}，功能融合${funcs}，主色调${colors}，${wall}墙面+${floor}地面，${lighting}氛围，${smart}联动，电影级超写实，超广角构图。`; prompts.push({id:i+1,text}); }
         generatedPrompts=prompts; dom.totalBadge.textContent=prompts.length+'组'; if(currentTab === 'prompts') renderPrompts();
     }
-    function renderPrompts(){ let html=''; generatedPrompts.forEach(p=>{ html+=`<div class="prompt-card"><span class="prompt-num">提示词 ${p.id}</span><div class="prompt-text">${p.text}</div><button class="btn-copy" onclick="copySinglePrompt(${p.id}, this)">📋 复制</button></div>`; }); dom.rightScroll.innerHTML=html; }
-    function copySinglePrompt(id,btn){ let p=generatedPrompts.find(x=>x.id===id); if(p) copyText(p.text,btn); }
-    function copyAllPrompts(){ if(!generatedPrompts.length){ showToast('请先生成提示词'); return; } copyText(generatedPrompts.map(p=>`【${p.id}】${p.text}`).join('\n\n'),null); }
+    function renderPrompts(){ let html=''; generatedPrompts.forEach(p=>{ html+=`<div class="prompt-card"><span class="prompt-num">提示词 ${p.id}</span><div class="prompt-text">${p.text}</div><button class="btn-copy" onclick="copyText('${escapeHtml(p.text)}', this)">📋 复制</button></div>`; }); dom.rightScroll.innerHTML=html; }
+    function copyAllPrompts(){ if(!generatedPrompts.length){ showToast('请先生成提示词'); return; } copyToClipboard(generatedPrompts.map(p=>`【${p.id}】${p.text}`).join('\n\n'), null); }
     function renderBudgetFull(){ let area=parseFloat(projectInfo.area)||120; let hard=area*1950, custom=area*480, total=hard+custom; dom.rightScroll.innerHTML=`<div class="report-card"><h3>精算报价</h3><div class="budget-total">预估 ¥${(total/10000).toFixed(1)}万</div></div>`; }
     function clearAll(){ CLASSIFICATION_DATA.forEach(c=>{ selections[c.id]=[]; }); $$('.tag',dom.leftScroll).forEach(t=>t.classList.remove('multi-selected')); projectInfo={name:'',area:'',floor:'',budget:'',region:'一线城市'}; generatedPrompts=[]; fullReport=null; fullSuites=[]; dom.totalBadge.textContent='0组'; updateSelCount(); dom.rightScroll.innerHTML='<div class="report-card"><p>已清空，请上传户型图或选择参数。</p></div>'; switchTab('report'); }
 
@@ -409,7 +472,6 @@
         { name: "侘寂自然", style: "侘寂自然", color: "黏土色、亚麻色、鼠尾草绿", material: "艺术涂料、微水泥、旧木、洞石", lighting: "间接照明+纸灯，柔和散射", soft: "亚麻沙发、藤编灯具、手工陶器", designDesc: "残缺美学，自然质朴，安静氛围" }
     ];
 
-    // 辅助函数：为每个空间生成详细家具描述
     function generateSpaceDesc(spaceType, template) {
         const descMap = {
             "玄关": `玄关柜(通顶+开放格)，换鞋凳(皮质软垫)，全身镜(落地/挂墙)，挂衣区(挂钩+挂杆)，灯光(感应灯带+射灯)，装饰摆件(艺术托盘+香薰)，绿植(琴叶榕/吊兰)。`,
@@ -425,13 +487,10 @@
         return descMap[spaceType] || "标准功能配置。";
     }
 
-    // 生成一组完整方案
     function generateOneSuite(template, idx, houseType, areaVal, extraNeeds) {
         const styleName = template.name;
         const designSystem = `【设计方案${idx+1}】风格：${template.style} | 色彩：${template.color} | 材质：${template.material} | 灯光：${template.lighting} | 软装：${template.soft} | 设计理念：${template.designDesc} | 户型：${houseType} | 面积：${areaVal}㎡ | 额外需求：${extraNeeds}`;
-        // 全屋空间方案
         const overall = `${designSystem}\n采用超广角连续透视构图，统一呈现玄关、客厅、餐厅、厨房、主卧、次卧、儿童房、卫生间、阳台。空间动线流畅，材质统一，灯光层次丰富。全屋${styleName}风格，摄影级超写实，8K，禁止分割画面。 --ar 16:9 --style raw`;
-        // 分空间
         const spaces = {};
         const spaceNames = ["玄关","客厅","餐厅","厨房","主卧","次卧","儿童房","卫生间","阳台"];
         spaceNames.forEach(sp => {
@@ -441,11 +500,8 @@
                 text: `${designSystem}\n【${sp}空间】${furniture} 延续整体${styleName}风格，材质统一，灯光协调。超写实渲染，人眼视角。 --ar 16:9`
             };
         });
-        // 平面布局
         const layout = `${designSystem}\n【全屋平面布局方案】CAD建筑平面图，比例1:50，展示${houseType}完整结构。功能分区明确，家具按人体工程学布置，动线清晰，标注尺寸。专业彩平图风格。 --ar 1:1 --no color`;
-        // 施工深化
         const construction = `${designSystem}\n【全屋施工深化方案】工程制图套件：天花吊顶、地面铺装、墙面立面、水电布置、灯光回路、柜体定制、节点大样。CAD标准表达，标注清晰。 --ar 16:9`;
-        // 展示提案
         const proposal = `${designSystem}\n【全屋展示提案方案】全案汇报图集：鸟瞰图、漫游轴测、客餐厅联动、昼景/夜景、软装拼图、材质特写、设计展板。电影级调色，统一${styleName}风格。 --ar 16:9`;
         return { overall, spaces, layout, construction, proposal };
     }
@@ -468,15 +524,12 @@
             dom.rightScroll.innerHTML = '<div class="report-card"><p>请先上传户型图或选择参数，系统将自动生成5组全链路方案。</p></div>';
             return;
         }
-        // 渲染顶部Tab
         let tabsHtml = `<div class="suite-tabs">`;
         for(let i=0; i<fullSuites.length; i++) {
             tabsHtml += `<button class="suite-tab ${i===currentSuiteIndex ? 'active' : ''}" onclick="switchSuite(${i})">${styleTemplates[i].name} 方案</button>`;
         }
         tabsHtml += `</div>`;
-        // 渲染当前方案内容
         const data = fullSuites[currentSuiteIndex];
-        const template = styleTemplates[currentSuiteIndex];
         function renderModule(title, contentKey, content) {
             let displayContent = content || "正在生成方案内容……";
             let escaped = escapeHtml(displayContent);
@@ -498,21 +551,21 @@
         let spacesHtml = `<div class="full-suite-card"><div class="suite-header"><div class="suite-title">② 分空间方案提示词 (9大区域独立复制)</div></div><div class="spaces-grid" id="suiteSpacesGrid_${currentSuiteIndex}"></div></div>`;
         let fullHtml = tabsHtml + renderModule("① 全屋空间方案提示词 (整体统一场景)", "overall", data.overall) + spacesHtml + renderModule("③ 平面布局方案提示词", "layout", data.layout) + renderModule("④ 施工深化方案提示词", "construction", data.construction) + renderModule("⑤ 展示提案方案提示词", "proposal", data.proposal);
         dom.rightScroll.innerHTML = fullHtml;
-        // 填充分空间网格
         const grid = document.getElementById(`suiteSpacesGrid_${currentSuiteIndex}`);
         if(grid && data.spaces) {
             let spacesGridHtml = '';
             for(let [key, val] of Object.entries(data.spaces)) {
+                // 将文本存入 data 属性，避免内联转义出错
+                const escapedText = escapeHtml(val.text);
                 spacesGridHtml += `
                     <div class="space-item">
-                        <div class="space-name">${val.name}<button class="btn-icon" style="padding:2px 8px;" onclick="copyText('${escapeHtml(val.text).replace(/'/g, "\\'")}', this)">复制</button></div>
-                        <div class="suite-prompt-preview" style="min-height: auto; padding: 10px;">${escapeHtml(val.text)}</div>
+                        <div class="space-name">${val.name}<button class="btn-icon" style="padding:2px 8px;" data-copy-text="${escapeHtml(val.text).replace(/"/g, '&quot;')}" onclick="copyTextFromAttr(this)">复制</button></div>
+                        <div class="suite-prompt-preview" style="min-height: auto; padding: 10px;">${escapedText}</div>
                     </div>
                 `;
             }
             grid.innerHTML = spacesGridHtml;
         }
-        // 注册全局辅助函数
         window.toggleModuleCollapse = function(moduleId) {
             const el = document.getElementById(moduleId);
             if(el) el.classList.toggle('collapsed');
@@ -527,7 +580,16 @@
             const el = document.getElementById(moduleId);
             if(!el) return;
             const text = el.getAttribute('data-fulltext') || el.innerText;
-            copyText(text, null);
+            copyToClipboard(text, null);
+        };
+        // 新增：从 data-copy-text 属性复制
+        window.copyTextFromAttr = function(btn) {
+            const text = btn.getAttribute('data-copy-text');
+            if(text) {
+                copyToClipboard(text, btn);
+            } else {
+                showToast('❌ 无复制内容');
+            }
         };
     }
 
@@ -546,7 +608,7 @@
         allText += `【平面布局方案】\n${data.layout}\n\n---\n\n`;
         allText += `【施工深化方案】\n${data.construction}\n\n---\n\n`;
         allText += `【展示提案方案】\n${data.proposal}`;
-        copyText(allText, null);
+        copyToClipboard(allText, null);
     }
 
     function showFullscreenModal(content) {
@@ -605,7 +667,6 @@
     window.toggleAccordion = toggleAccordion;
     window.generateFullReport = generateFullReport;
     window.generatePrompts = generatePrompts;
-    window.copySinglePrompt = copySinglePrompt;
     window.copyAllPrompts = copyAllPrompts;
     window.clearAll = clearAll;
     window.switchTab = switchTab;
